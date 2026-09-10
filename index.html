@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=23">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -184,6 +184,14 @@
       </div>
       <span class="foot-dim">Ciclo de cine · Fran &amp; Juanma · portadas de TMDb</span>
     </footer>
+
+    <!-- Imágenes decorativas de los costados. En pantallas anchas (≥1440px)
+         van fijas a los lados (ver @media en styles.css); en angostas caen
+         acá al final, en el flujo normal. Puramente decorativas (aria-hidden). -->
+    <div class="deco-flanks" aria-hidden="true">
+      <img class="deco-flank deco-flank-l" src="deco-izquierda.png?v=23" alt="" loading="lazy" decoding="async" width="800" height="800">
+      <img class="deco-flank deco-flank-r" src="deco-derecha.png?v=23" alt="" loading="lazy" decoding="async" width="800" height="800">
+    </div>
   </div>
 
   <div id="rouletteModal" class="modal" hidden>
@@ -267,10 +275,10 @@
 
   <div id="configBanner" class="config-banner" hidden></div>
 
-  <script src="config.js?v=21"></script>
-  <script src="movies.js?v=21"></script>
-  <script src="tmdb.js?v=21"></script>
-  <script src="store.js?v=21"></script>
-  <script src="app.js?v=21"></script>
+  <script src="config.js?v=23"></script>
+  <script src="movies.js?v=23"></script>
+  <script src="tmdb.js?v=23"></script>
+  <script src="store.js?v=23"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>

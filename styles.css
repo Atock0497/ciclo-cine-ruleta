@@ -928,6 +928,55 @@ canvas#wheel{
 .wp-jw{ display:inline-block; font-size:12px; margin-top:4px; text-decoration:none; border-bottom:1px dotted var(--gold-dim); }
 .wp-jw:hover{ color:var(--gold); }
 
+/* ---------------- Imágenes decorativas de los costados ---------------- */
+/* Va como último hijo de .wrap. Por defecto (mobile, tablet y cualquier
+   ancho donde NO entren a los costados sin taparse con el centro): quedan
+   acá al final, en el flujo normal, y se scrollean con todo lo demás.
+   El espacio con el footer lo da el gap de .wrap. */
+.deco-flanks{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  flex-wrap:wrap;
+  gap:18px;
+}
+.deco-flank{
+  width:clamp(140px, 42%, 260px);
+  height:auto;
+  opacity:.9;
+  filter:drop-shadow(0 14px 34px rgba(0,0,0,.55));
+}
+/* pantallas muy chicas: apiladas */
+@media (max-width:380px){
+  .deco-flank{ width:min(78%, 260px); }
+}
+
+/* Ancho suficiente para el centro (940px) + las dos imágenes fijas (grandes)
+   con aire: 940 + 2·(20 gap + ~420 img) ≈ 1800 → a 1900 quedan ~40px del borde.
+   Acá pasan a fijas, centradas en vertical, sin moverse con el scroll. */
+@media (min-width:1900px){
+  :root{ --deco-w:clamp(340px, 26vw, 420px); }
+  /* el wrapper sale del flujo (no agrega alto ni gap al final de la página).
+     Sin z-index propio: queda en el contexto de apilado de .wrap, por debajo
+     de #caseReveal (z-index:80) y de los modales (z-index:50, fuera de .wrap),
+     y lo alcanza el blur de .wrap.blurred durante el sorteo. */
+  .deco-flanks{ position:fixed; inset:0; pointer-events:none; }
+  .deco-flank{
+    position:fixed;
+    top:50%;
+    transform:translateY(-50%);
+    width:var(--deco-w);
+    max-height:88vh;        /* ventanas muy bajas: no se pasan de alto (mantiene proporción) */
+    filter:drop-shadow(0 18px 44px rgba(0,0,0,.5));
+    pointer-events:none;    /* nunca bloquean un clic, en ningún caso */
+  }
+  /* misma ubicación: pegadas al borde del contenido central (470px del centro)
+     con 20px de aire, y nunca a menos de 12px del borde de la ventana.
+     La imagen crece hacia afuera; el borde que da al contenido no se mueve. */
+  .deco-flank-l{ left:max(12px, calc(50% - 490px - var(--deco-w))); }
+  .deco-flank-r{ right:max(12px, calc(50% - 490px - var(--deco-w))); }
+}
+
 /* ---------------- Responsive ---------------- */
 @media (max-width:640px){
   body{ padding:28px 12px 56px; }
