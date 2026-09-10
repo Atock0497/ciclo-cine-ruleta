@@ -674,15 +674,13 @@
     renderSync();
     renderBanner();
 
+    // La ficha NO se abre sola al entrar ni al cambiar de ruleta:
+    // solo aparece al girar la ruleta o al tocar una película.
     var rid = S.activeRouletteId();
     if (rid !== lastActive) {
       lastActive = rid;
-      var lr = S.lastResult(rid);
-      if (lr && S.movieById(lr) && S.moviesForRoulette(rid).some(function (m) { return m.id === lr; })) {
-        openMovie(lr, false);
-      } else {
-        $("resultCard").hidden = true; ui.currentId = null;
-      }
+      $("resultCard").hidden = true;
+      ui.currentId = null;
     } else {
       refreshResultCard();
     }

@@ -15,7 +15,7 @@ window.CCStore = (function () {
   var REVIEWERS = (CONFIG.reviewers && CONFIG.reviewers.length === 2)
     ? CONFIG.reviewers.slice() : ["Fran", "Juanma"];
 
-  var LS_MIRROR = "cc.doc.v3";
+  var LS_MIRROR = "cc.doc.v4";   // v4: descarta espejos viejos con datos de prueba
   var LS_DEVICE_AUTHOR = "cc.deviceAuthor.v1";
   var LS_ACTIVE_ROULETTE = "cc.activeRoulette.v1";
 
@@ -56,8 +56,9 @@ window.CCStore = (function () {
   /* ---------- documento vacío / normalización ---------- */
   function emptyDoc() {
     return {
-      v: 3, updatedAt: 0, updatedBy: null,
+      v: 4, updatedAt: 0, updatedBy: null,
       movies: {}, roulettes: [], reviews: {}, meta: {}, lastResult: {},
+      deletedReviews: {},   // { reviewId: ts } — lápidas para que un borrado no vuelva al sincronizar
     };
   }
 
@@ -70,7 +71,13 @@ window.CCStore = (function () {
     d.reviews = doc.reviews && typeof doc.reviews === "object" ? doc.reviews : {};
     d.meta = doc.meta && typeof doc.meta === "object" ? doc.meta : {};
     d.lastResult = doc.lastResult && typeof doc.lastResult === "object" ? doc.lastResult : {};
+    d.deletedReviews = doc.deletedReviews && typeof doc.deletedReviews === "object" ? doc.deletedReviews : {};
     d.roulettes = Array.isArray(doc.roulettes) ? doc.roulettes.filter(Boolean) : [];
+    // aplicar lápidas: sacar cualquier reseña borrada
+    Object.keys(d.reviews).forEach(function (mid) {
+      d.reviews[mid] = (d.reviews[mid] || []).filter(function (rv) { return !(rv && d.deletedReviews[rv.id]); });
+      if (!d.reviews[mid].length) delete d.reviews[mid];
+    });
     ensureOriginal(d);
     return d;
   }
@@ -118,7 +125,13 @@ window.CCStore = (function () {
       });
     });
 
-    // reseñas: unión por review.id
+    // lápidas de borrado: unión (una vez borrada, borrada para todos)
+    out.deletedReviews = {};
+    [remote.deletedReviews, local.deletedReviews].forEach(function (src) {
+      Object.keys(src || {}).forEach(function (id) { out.deletedReviews[id] = src[id]; });
+    });
+
+    // reseñas: unión por review.id, descartando las que tengan lápida
     out.reviews = {};
     var allMovieIds = {};
     Object.keys(remote.reviews || {}).forEach(function (k) { allMovieIds[k] = 1; });
@@ -127,7 +140,7 @@ window.CCStore = (function () {
       var seen = {}, list = [];
       [].concat(remote.reviews[mid] || [], local.reviews[mid] || []).forEach(function (rv) {
         if (!rv || !rv.id) rv.id = uid("rv_");
-        if (seen[rv.id]) return;
+        if (seen[rv.id] || out.deletedReviews[rv.id]) return;
         seen[rv.id] = 1; list.push(rv);
       });
       list.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
@@ -367,6 +380,7 @@ window.CCStore = (function () {
   }
   function deleteReview(mid, rid) {
     mutate(function (d) {
+      d.deletedReviews[rid] = nowMs();   // lápida: no vuelve al sincronizar
       if (!d.reviews[mid]) return;
       d.reviews[mid] = d.reviews[mid].filter(function (x) { return x.id !== rid; });
       if (!d.reviews[mid].length) delete d.reviews[mid];
