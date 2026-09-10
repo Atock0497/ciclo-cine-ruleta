@@ -937,7 +937,7 @@ canvas#wheel{
     padding:20px;
   }
   .result-poster{
-    max-width:180px;
+    width:min(180px, 55vw);   /* ancho definido: si no, .poster-box (width:100% + hijos absolutos) colapsa a 0 */
     margin:0 auto;
   }
   .film-list{ max-height:none; grid-template-columns:1fr; }
