@@ -9,10 +9,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
+
+  <div id="userBadge" class="user-badge" hidden>
+    <span id="userName" class="user-name"></span>
+    <button type="button" id="logoutBtn" class="user-logout">salir</button>
+  </div>
 
   <div class="wrap">
 
@@ -40,6 +45,7 @@
           <div class="result-kicker" id="resultKicker">Película sorteada</div>
           <h2 id="resultTitle" class="result-title">—</h2>
           <div id="resultMeta" class="result-meta"></div>
+          <button type="button" id="editMovieBtn" class="edit-movie-btn" hidden>✎ Editar / quitar</button>
         </div>
 
         <div class="tabs" role="tablist" aria-label="Ficha y puntuación">
@@ -48,19 +54,27 @@
         </div>
 
         <div id="panel-ficha" class="panel is-active" role="tabpanel" aria-labelledby="tab-ficha">
+          <div id="externalRatings" class="ext-ratings" hidden></div>
           <p id="resultOverview" class="overview"></p>
+          <div id="watchProviders" class="watch-providers" hidden></div>
           <div id="resultLinks" class="result-links"></div>
         </div>
 
         <div id="panel-puntuar" class="panel" role="tabpanel" aria-labelledby="tab-puntuar" hidden>
+          <p id="reviewLock" class="review-lock" hidden>
+            Iniciá sesión como <b>Fran</b> o <b>Juanma</b> para puntuar. (Invitado solo puede ver.)
+            <button type="button" id="reviewLockLogin" class="linkish">Iniciar sesión</button>
+          </p>
           <form id="reviewForm" class="review-form" novalidate>
             <div class="field">
-              <label class="field-label">¿Quién puntúa? <span class="req">obligatorio</span></label>
               <div id="authorSlicer" class="slicer" role="radiogroup" aria-label="Quién puntúa"></div>
             </div>
             <div class="field">
-              <label class="field-label">Puntaje</label>
-              <div id="starInput" class="stars-input" role="radiogroup" aria-label="Puntaje en estrellas"></div>
+              <label class="field-label">Puntaje <span class="opt">0 a 10 · movés el mouse y hacés clic</span></label>
+              <div class="stars-row">
+                <div id="starInput" class="stars-input" role="slider" aria-label="Puntaje de 0 a 10" aria-valuemin="0" aria-valuemax="10"></div>
+                <span id="starValue" class="star-value"></span>
+              </div>
             </div>
             <div class="field">
               <label class="field-label" for="reviewNote">Nota <span class="opt">opcional</span></label>
@@ -81,14 +95,44 @@
     </section>
 
     <section class="wheel-section">
-      <div class="wheel-frame">
+      <div class="mode-bar">
+        <div class="mode-toggle" role="radiogroup" aria-label="Modo de sorteo">
+          <button type="button" class="mode-opt" data-mode="ruleta" role="radio" aria-checked="true">🎡 Ruleta</button>
+          <button type="button" class="mode-opt" data-mode="caja" role="radio" aria-checked="false">📦 Caja</button>
+        </div>
+        <button type="button" id="muteBtn" class="mute-btn" aria-label="Sonido" title="Sonido">🔊</button>
+      </div>
+
+      <div id="wheelWrap" class="wheel-frame">
         <div class="pointer" aria-hidden="true"></div>
         <canvas id="wheel" width="900" height="900" role="img" aria-label="Ruleta de películas"></canvas>
         <div class="hub" aria-hidden="true"></div>
       </div>
+
+      <div id="caseWrap" class="case-box" hidden>
+        <div class="case-marker" aria-hidden="true"></div>
+        <div id="caseTrack" class="case-track"></div>
+        <div class="case-fade case-fade-l" aria-hidden="true"></div>
+        <div class="case-fade case-fade-r" aria-hidden="true"></div>
+      </div>
+
       <button id="spin" class="btn btn-gold btn-spin" type="button">Girar la ruleta</button>
       <p id="spinStatus" class="spin-status">Tocá «Girar la ruleta» para sortear la película de la noche.</p>
     </section>
+
+    <div id="caseReveal" class="case-reveal" hidden>
+      <div class="case-reveal-backdrop" data-close="1"></div>
+      <div class="case-reveal-card" role="dialog" aria-modal="true" aria-labelledby="crTitle">
+        <div class="cr-kicker">Salió sorteada</div>
+        <div id="crPoster" class="cr-poster"></div>
+        <h2 id="crTitle" class="cr-title">—</h2>
+        <div id="crMeta" class="cr-meta"></div>
+        <div class="cr-actions">
+          <button type="button" id="crRate" class="btn btn-gold">Puntuar ★</button>
+          <button type="button" id="crClose" class="btn-ghost">Ver ficha</button>
+        </div>
+      </div>
+    </div>
 
     <section class="cartelera">
       <div class="cartelera-head">
@@ -123,6 +167,14 @@
           <span class="chev" aria-hidden="true">▾</span>
         </button>
         <div id="filmListSeen" class="film-list"></div>
+      </div>
+
+      <div id="hiddenSection" class="cartelera-section collapsed" hidden>
+        <button id="hiddenToggle" class="section-head section-toggle" type="button" aria-expanded="false">
+          <h3>Quitadas del ciclo <span id="hiddenCount" class="section-count"></span></h3>
+          <span class="chev" aria-hidden="true">▾</span>
+        </button>
+        <div id="filmListHidden" class="film-list"></div>
       </div>
     </section>
 
@@ -162,11 +214,67 @@
     </div>
   </div>
 
+  <div id="movieModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="movieModalTitle">
+      <button class="modal-close" id="movieModalClose" type="button" aria-label="Cerrar">&times;</button>
+      <h3 id="movieModalTitle">Editar película</h3>
+      <p class="modal-hint">Cambiá el título, el año o el ID de TMDb (para arreglar la portada, sinopsis y «dónde verla»).</p>
+      <label class="modal-field">
+        <span>Título</span>
+        <input id="mmTitle" type="text" maxlength="120">
+      </label>
+      <label class="modal-field">
+        <span>Año</span>
+        <input id="mmYear" type="number" min="1890" max="2100">
+      </label>
+      <label class="modal-field">
+        <span>ID de TMDb o link</span>
+        <input id="mmTmdb" type="text" placeholder="603  ó  themoviedb.org/movie/603">
+        <span class="mm-help" id="mmTmdbHelp">Buscá la peli en themoviedb.org y pegá el número de la URL.</span>
+      </label>
+      <label class="modal-field">
+        <span>URL de póster propia <b>(opcional)</b></span>
+        <input id="mmPoster" type="text" placeholder="https://…/poster.jpg">
+      </label>
+      <div class="modal-actions">
+        <button id="mmDelete" class="btn-danger" type="button">Quitar del ciclo</button>
+        <span class="spacer"></span>
+        <button id="mmReset" class="btn-ghost" type="button" hidden>Volver al original</button>
+        <button id="mmSave" class="btn btn-gold" type="button">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loginModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-card modal-login" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <h3 id="loginTitle">Entrar</h3>
+      <p class="modal-hint">Fran y Juanma pueden editar la lista. Invitado solo mira y sortea.</p>
+      <form id="loginForm">
+        <label class="modal-field">
+          <span>Usuario</span>
+          <input id="loginUser" type="text" autocomplete="username" placeholder="Fran / Juanma / Invitado">
+        </label>
+        <label class="modal-field">
+          <span>Contraseña</span>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••">
+        </label>
+        <p id="loginError" class="login-error" hidden>Usuario o contraseña incorrectos.</p>
+        <div class="modal-actions">
+          <span class="spacer"></span>
+          <button type="submit" class="btn btn-gold">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="configBanner" class="config-banner" hidden></div>
 
-  <script src="config.js?v=10"></script>
-  <script src="movies.js?v=10"></script>
-  <script src="store.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="config.js?v=18"></script>
+  <script src="movies.js?v=18"></script>
+  <script src="tmdb.js?v=18"></script>
+  <script src="store.js?v=18"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

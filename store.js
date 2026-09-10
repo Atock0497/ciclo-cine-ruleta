@@ -22,13 +22,18 @@ window.CCStore = (function () {
   var ORIGINAL_ID = "original";
 
   /* ---------- películas base ---------- */
+  var TMDB = window.CC_TMDB || {};
   var BASE = (window.CC_MOVIES || []).map(function (m, i) {
+    var id = m.id || ("peli-" + i);
+    var t = TMDB[id] || {};
     return {
-      id: m.id || ("peli-" + i),
+      id: id,
       title: m.title || "(sin título)",
       year: m.year || null,
       overview: (m.overview || "").trim(),
       poster: m.poster || null,
+      posterPath: t.poster || null,
+      tmdbId: m.tmdbId || t.id || null,
       tmdbQuery: m.tmdbQuery || null,
       base: true,
       order: i,
@@ -59,6 +64,7 @@ window.CCStore = (function () {
       v: 4, updatedAt: 0, updatedBy: null,
       movies: {}, roulettes: [], reviews: {}, meta: {}, lastResult: {},
       deletedReviews: {},   // { reviewId: ts } — lápidas para que un borrado no vuelva al sincronizar
+      overrides: {},        // { movieId: { title?, year?, tmdbId?, poster?, hidden? } } — ediciones sobre pelis base o agregadas
     };
   }
 
@@ -72,6 +78,7 @@ window.CCStore = (function () {
     d.meta = doc.meta && typeof doc.meta === "object" ? doc.meta : {};
     d.lastResult = doc.lastResult && typeof doc.lastResult === "object" ? doc.lastResult : {};
     d.deletedReviews = doc.deletedReviews && typeof doc.deletedReviews === "object" ? doc.deletedReviews : {};
+    d.overrides = doc.overrides && typeof doc.overrides === "object" ? doc.overrides : {};
     d.roulettes = Array.isArray(doc.roulettes) ? doc.roulettes.filter(Boolean) : [];
     // aplicar lápidas: sacar cualquier reseña borrada
     Object.keys(d.reviews).forEach(function (mid) {
@@ -131,6 +138,14 @@ window.CCStore = (function () {
       Object.keys(src || {}).forEach(function (id) { out.deletedReviews[id] = src[id]; });
     });
 
+    // ediciones de pelis: unión por id, gana la más nueva (por `at`)
+    out.overrides = {};
+    [remote.overrides, local.overrides].forEach(function (src) {
+      Object.keys(src || {}).forEach(function (id) {
+        if (!out.overrides[id] || (src[id].at || 0) >= (out.overrides[id].at || 0)) out.overrides[id] = src[id];
+      });
+    });
+
     // reseñas: unión por review.id, descartando las que tengan lápida
     out.reviews = {};
     var allMovieIds = {};
@@ -162,7 +177,8 @@ window.CCStore = (function () {
 
   /* ---------- Supabase REST ---------- */
   var SB = {
-    on: !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey),
+    // ?nosync en la URL => modo testing, sin tocar Supabase (solo localStorage)
+    on: !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey) && !/[?&]nosync\b/.test(location.search),
     row: "main",
     base: (CONFIG.supabaseUrl || "").replace(/\/+$/, "") + "/rest/v1/roulette_state",
     headers: function (extra) {
@@ -276,17 +292,47 @@ window.CCStore = (function () {
   }
 
   /* ---------- lecturas ---------- */
-  function allMovies() {
+  function applyOverride(m) {
+    var o = state.overrides[m.id];
+    if (!o) return m;
+    var changedId = o.tmdbId != null && o.tmdbId !== m.tmdbId;
+    return {
+      id: m.id,
+      title: o.title != null ? o.title : m.title,
+      year: o.year != null ? o.year : m.year,
+      overview: m.overview,
+      poster: o.poster != null ? o.poster : m.poster,
+      posterPath: changedId ? null : m.posterPath,   // si cambió el id, el poster viejo no sirve
+      tmdbId: o.tmdbId != null ? o.tmdbId : m.tmdbId,
+      tmdbQuery: m.tmdbQuery,
+      base: m.base, addedBy: m.addedBy, order: m.order,
+      hidden: !!o.hidden,
+      edited: true,
+    };
+  }
+  function allMoviesRaw() {
     var added = Object.keys(state.movies).map(function (id) {
       var m = state.movies[id];
       return { id: id, title: m.title, year: m.year || null, overview: (m.overview || ""),
-               poster: m.poster || null, tmdbQuery: m.tmdbQuery || null, base: false,
+               poster: m.poster || null, posterPath: (TMDB[id] || {}).poster || null,
+               tmdbId: m.tmdbId || (TMDB[id] || {}).id || null,
+               tmdbQuery: m.tmdbQuery || null, base: false,
                addedBy: m.addedBy || null, order: 10000 + (m.addedAt || 0) };
     });
-    return BASE.concat(added);
+    return BASE.concat(added).map(applyOverride);
   }
+  function allMovies() { return allMoviesRaw().filter(function (m) { return !m.hidden; }); }
+  function hiddenMovies() { return allMoviesRaw().filter(function (m) { return m.hidden; }); }
   function movieById(id) {
-    return allMovies().filter(function (m) { return m.id === id; })[0] || null;
+    return allMoviesRaw().filter(function (m) { return m.id === id; })[0] || null;
+  }
+  // valor "de fábrica" (base/agregada) sin overrides — para comparar en la UI de edición
+  function factoryMovie(id) {
+    if (BASE_IDS.indexOf(id) !== -1) return BASE.filter(function (m) { return m.id === id; })[0] || null;
+    var m = state.movies[id];
+    if (!m) return null;
+    return { id: id, title: m.title, year: m.year || null,
+             tmdbId: m.tmdbId || (TMDB[id] || {}).id || null, poster: m.poster || null };
   }
   function moviesForRoulette(id) {
     var r = getRoulette(id);
@@ -296,11 +342,32 @@ window.CCStore = (function () {
     return (r.movieIds || []).map(function (mid) { return byId[mid]; }).filter(Boolean);
   }
 
+  function setOverride(id, patch) {
+    mutate(function (d) {
+      var o = d.overrides[id] = d.overrides[id] || {};
+      Object.keys(patch).forEach(function (k) {
+        if (patch[k] === null || patch[k] === "" || patch[k] === undefined) delete o[k];
+        else o[k] = patch[k];
+      });
+      delete d.meta[id];  // invalidar cache de portada/sinopsis/rating (se re-baja)
+      o.at = nowMs();
+      if (Object.keys(o).length <= 1) delete d.overrides[id];  // solo quedaba `at`
+    });
+  }
+  function hideMovie(id) { setOverride(id, { hidden: true }); }
+  function unhideMovie(id) { setOverride(id, { hidden: null }); }
+
   function reviewsFor(mid) { return (state.reviews[mid] || []).slice().sort(function (a, b) { return a.ts - b.ts; }); }
+  // puntaje de una reseña normalizado a escala 0-10
+  // (reseñas viejas sin `scale` estaban en 1-5 -> x2)
+  function reviewPoints(r) {
+    if (!r) return 0;
+    return r.scale === 10 ? (r.stars || 0) : (r.stars || 0) * 2;
+  }
   function avg(mid) {
     var rs = state.reviews[mid] || [];
     if (!rs.length) return null;
-    return rs.reduce(function (s, r) { return s + (r.stars || 0); }, 0) / rs.length;
+    return rs.reduce(function (s, r) { return s + reviewPoints(r); }, 0) / rs.length;
   }
   function isSeen(m) { return (state.reviews[m.id] || []).length > 0; }
   function metaFor(mid) { return state.meta[mid] || null; }
@@ -367,6 +434,7 @@ window.CCStore = (function () {
       id: uid("rv_"),
       author: rv.author,
       stars: rv.stars,
+      scale: rv.scale || 10,
       note: (rv.note || "").trim(),
       ts: nowMs(),
     };
@@ -435,12 +503,19 @@ window.CCStore = (function () {
     deleteRoulette: deleteRoulette,
 
     allMovies: allMovies,
+    hiddenMovies: hiddenMovies,
     movieById: movieById,
+    factoryMovie: factoryMovie,
     moviesForRoulette: moviesForRoulette,
     addMovie: addMovie,
     removeAddedMovie: removeAddedMovie,
+    setOverride: setOverride,
+    overrideFor: function (id) { return state.overrides[id] || null; },
+    hideMovie: hideMovie,
+    unhideMovie: unhideMovie,
 
     reviewsFor: reviewsFor,
+    reviewPoints: reviewPoints,
     avg: avg,
     isSeen: isSeen,
     addReview: addReview,

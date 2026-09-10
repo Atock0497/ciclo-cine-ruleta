@@ -22,6 +22,19 @@ window.CC_CONFIG = {
   tmdbLanguage: "es-ES",
 
   /* ---------------------------------------------------------------
+     OMDb  →  puntaje de IMDb (y de Rotten Tomatoes) en la ficha
+     ---------------------------------------------------------------
+     IMDb no tiene API pública gratis. OMDb es un servicio de terceros
+     que expone el rating de IMDb. Sin esto igual aparece el LINK a
+     IMDb y el puntaje de TMDb; con esto aparece también el número
+     de IMDb.
+
+     Key gratis (1 min): https://www.omdbapi.com/apikey.aspx
+     (elegí "FREE", te llega por mail un link para activarla).
+  --------------------------------------------------------------- */
+  omdbApiKey: "",
+
+  /* ---------------------------------------------------------------
      2) Supabase  →  datos compartidos entre Fran y Juanma
      ---------------------------------------------------------------
      Sin esto, cada navegador guarda lo suyo por separado.
@@ -43,4 +56,21 @@ window.CC_CONFIG = {
 
   /* Cada cuánto revisar si el otro cargó algo nuevo (ms). */
   syncPollMs: 20000,
+
+  /* ---------------------------------------------------------------
+     Sonido de la caja
+     ---------------------------------------------------------------
+     Por defecto el sonido (tick + reveal) está SINTETIZADO en el
+     navegador — no usa archivos, no depende de nada.
+
+     Si querés usar archivos de sonido propios, poné esto en true y
+     dejá los archivos en la carpeta `sounds/`:
+        sounds/tick.mp3     (o .ogg / .wav / .m4a)
+        sounds/reveal.mp3
+     Si un archivo no está, cae de nuevo al sonido sintetizado.
+
+     No incluyo los sonidos de CS2: son de Valve y no los puedo
+     redistribuir. Si tenés los archivos por tu cuenta, van acá.
+  --------------------------------------------------------------- */
+  soundPack: false,
 };
