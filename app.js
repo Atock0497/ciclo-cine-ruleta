@@ -523,7 +523,12 @@
     };
     stars.ontouchmove = function (ev) { paintStars(valFrom(ev)); };
 
-    $("reviewNote").value = "";
+    // si ya puntuó esta peli, precargamos su nota + puntaje para editar
+    var mine = S.myReview(ui.currentId, currentUser());
+    ui.editing = !!mine;
+    ui.formStars = mine ? S.reviewPoints(mine) : 0;
+    $("reviewNote").value = mine ? (mine.note || "") : "";
+    $("reviewSubmit").textContent = mine ? "Actualizar puntuación" : "Guardar puntuación";
     paintStars(ui.formStars);
     updateSubmitState();
   }
@@ -546,7 +551,7 @@
     if (ui.formFlashUntil && Date.now() < ui.formFlashUntil) return; // no pisar el "¡Guardado!"
     var h = $("reviewHint");
     if (ui.formStars < 0.5) { h.textContent = "Poné un puntaje."; h.classList.remove("ok"); }
-    else { h.textContent = "Listo para guardar."; h.classList.add("ok"); }
+    else { h.textContent = ui.editing ? "Listo para actualizar tu puntuación." : "Listo para guardar."; h.classList.add("ok"); }
   }
 
   function flashReviewHint(msg) {
@@ -1224,13 +1229,12 @@
   $("reviewForm").addEventListener("submit", function (e) {
     e.preventDefault();
     if (!isAdmin() || !ui.currentId || !ui.formAuthor || ui.formStars < 0.5) { updateSubmitState(); return; }
-    var wasFirst = S.reviewsFor(ui.currentId).length === 0;
-    var who = ui.formAuthor;
-    S.addReview(ui.currentId, { author: ui.formAuthor, stars: ui.formStars, scale: 10, note: $("reviewNote").value });
-    $("reviewNote").value = ""; ui.formStars = 0;
-    syncStarButtons();
-    flashReviewHint("¡Guardado! Puntuada por " + who + (wasFirst ? ". Ya sale de la ruleta." : "."));
-    updateSubmitState();
+    var mid = ui.currentId;
+    var wasFirst = S.reviewsFor(mid).length === 0;
+    var wasEditing = !!S.myReview(mid, ui.formAuthor);
+    S.addReview(mid, { author: ui.formAuthor, stars: ui.formStars, scale: 10, note: $("reviewNote").value });
+    if (ui.currentId === mid) buildReviewForm();   // recarga con el valor recién guardado
+    flashReviewHint(wasEditing ? "¡Actualizada!" : "¡Guardado!" + (wasFirst ? " Ya sale de la ruleta." : ""));
     if (wasFirst) { delete $("spinStatus").dataset.result; $("spinStatus").textContent = ""; renderWheel(); }
   });
 

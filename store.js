@@ -80,9 +80,19 @@ window.CCStore = (function () {
     d.deletedReviews = doc.deletedReviews && typeof doc.deletedReviews === "object" ? doc.deletedReviews : {};
     d.overrides = doc.overrides && typeof doc.overrides === "object" ? doc.overrides : {};
     d.roulettes = Array.isArray(doc.roulettes) ? doc.roulettes.filter(Boolean) : [];
-    // aplicar lápidas: sacar cualquier reseña borrada
+    // aplicar lápidas + colapsar a UNA reseña por autor (la más nueva)
     Object.keys(d.reviews).forEach(function (mid) {
-      d.reviews[mid] = (d.reviews[mid] || []).filter(function (rv) { return !(rv && d.deletedReviews[rv.id]); });
+      var byAuthor = {};
+      (d.reviews[mid] || []).forEach(function (rv) {
+        if (!rv || d.deletedReviews[rv.id]) return;
+        var k = rv.author || "?";
+        if (!byAuthor[k]) { byAuthor[k] = rv; return; }
+        var keep = (rv.ts || 0) >= (byAuthor[k].ts || 0) ? rv : byAuthor[k];
+        var drop = keep === rv ? byAuthor[k] : rv;
+        if (drop.id) d.deletedReviews[drop.id] = nowMs();   // lápida al duplicado viejo
+        byAuthor[k] = keep;
+      });
+      d.reviews[mid] = Object.keys(byAuthor).map(function (k) { return byAuthor[k]; });
       if (!d.reviews[mid].length) delete d.reviews[mid];
     });
     ensureOriginal(d);
@@ -146,19 +156,19 @@ window.CCStore = (function () {
       });
     });
 
-    // reseñas: unión por review.id, descartando las que tengan lápida
+    // reseñas: unión por review.id (gana la versión más nueva por `ts`), sin lápidas
     out.reviews = {};
     var allMovieIds = {};
     Object.keys(remote.reviews || {}).forEach(function (k) { allMovieIds[k] = 1; });
     Object.keys(local.reviews || {}).forEach(function (k) { allMovieIds[k] = 1; });
     Object.keys(allMovieIds).forEach(function (mid) {
-      var seen = {}, list = [];
+      var byId = {};
       [].concat(remote.reviews[mid] || [], local.reviews[mid] || []).forEach(function (rv) {
-        if (!rv || !rv.id) rv.id = uid("rv_");
-        if (seen[rv.id] || out.deletedReviews[rv.id]) return;
-        seen[rv.id] = 1; list.push(rv);
+        if (!rv || !rv.id || out.deletedReviews[rv.id]) return;
+        if (!byId[rv.id] || (rv.ts || 0) >= (byId[rv.id].ts || 0)) byId[rv.id] = rv;
       });
-      list.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+      var list = Object.keys(byId).map(function (id) { return byId[id]; })
+        .sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
       if (list.length) out.reviews[mid] = list;
     });
 
@@ -429,22 +439,22 @@ window.CCStore = (function () {
     if (activeRouletteId() === id) setActiveRouletteId(ORIGINAL_ID);
   }
 
+  // upsert: una reseña por autor y película. Si ya puntuó, se actualiza.
   function addReview(mid, rv) {
-    var review = {
-      id: uid("rv_"),
-      author: rv.author,
-      stars: rv.stars,
-      scale: rv.scale || 10,
-      note: (rv.note || "").trim(),
-      ts: nowMs(),
-    };
+    var newId = uid("rv_"), ts = nowMs();
+    var vals = { author: rv.author, stars: rv.stars, scale: rv.scale || 10, note: (rv.note || "").trim(), ts: ts };
     mutate(function (d) {
-      (d.reviews[mid] = d.reviews[mid] || []);
-      if (!d.reviews[mid].some(function (x) { return x.id === review.id; })) {
-        d.reviews[mid].push(review);
+      var list = d.reviews[mid] = d.reviews[mid] || [];
+      var mine = list.filter(function (x) { return x && x.author === rv.author; })[0];
+      if (mine) {
+        mine.stars = vals.stars; mine.scale = vals.scale; mine.note = vals.note; mine.ts = ts;
+      } else {
+        list.push({ id: newId, author: vals.author, stars: vals.stars, scale: vals.scale, note: vals.note, ts: ts });
       }
     });
-    return review;
+  }
+  function myReview(mid, author) {
+    return (state.reviews[mid] || []).filter(function (r) { return r && r.author === author; })[0] || null;
   }
   function deleteReview(mid, rid) {
     mutate(function (d) {
@@ -515,6 +525,7 @@ window.CCStore = (function () {
     unhideMovie: unhideMovie,
 
     reviewsFor: reviewsFor,
+    myReview: myReview,
     reviewPoints: reviewPoints,
     avg: avg,
     isSeen: isSeen,
