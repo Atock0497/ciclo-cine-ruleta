@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>La Ruleta del Ciclo de Cine</title>
+  <meta name="description" content="Ruleta para sortear qué película ver en el ciclo de cine, con portadas, sinopsis y puntuaciones compartidas.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css?v=8">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="wrap">
+
+    <header class="marquee">
+      <div class="kicker">Ciclo de cine</div>
+      <h1>La Ruleta del Ciclo</h1>
+      <p class="sub">Girá la ruleta, que el azar elija la película de la noche, y dejá tu puntuación.</p>
+      <div class="bulbs" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </header>
+
+    <nav class="roulette-bar" id="rouletteBar" aria-label="Ruletas"></nav>
+
+    <section id="resultCard" class="result-card" hidden aria-live="polite">
+      <button id="resultClose" class="result-close" type="button" aria-label="Cerrar resultado">&times;</button>
+
+      <div class="result-poster">
+        <div id="posterBox" class="poster-box"><div class="poster-fallback"></div></div>
+      </div>
+
+      <div class="result-body">
+        <div class="result-head">
+          <div class="result-kicker" id="resultKicker">Película sorteada</div>
+          <h2 id="resultTitle" class="result-title">—</h2>
+          <div id="resultMeta" class="result-meta"></div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Ficha y puntuación">
+          <button class="tab is-active" role="tab" id="tab-ficha" aria-controls="panel-ficha" aria-selected="true" data-tab="ficha">Ficha</button>
+          <button class="tab" role="tab" id="tab-puntuar" aria-controls="panel-puntuar" aria-selected="false" data-tab="puntuar">Puntuar</button>
+        </div>
+
+        <div id="panel-ficha" class="panel is-active" role="tabpanel" aria-labelledby="tab-ficha">
+          <p id="resultOverview" class="overview"></p>
+          <div id="resultLinks" class="result-links"></div>
+        </div>
+
+        <div id="panel-puntuar" class="panel" role="tabpanel" aria-labelledby="tab-puntuar" hidden>
+          <form id="reviewForm" class="review-form" novalidate>
+            <div class="field">
+              <label class="field-label">¿Quién puntúa? <span class="req">obligatorio</span></label>
+              <div id="authorSlicer" class="slicer" role="radiogroup" aria-label="Quién puntúa"></div>
+            </div>
+            <div class="field">
+              <label class="field-label">Puntaje</label>
+              <div id="starInput" class="stars-input" role="radiogroup" aria-label="Puntaje en estrellas"></div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="reviewNote">Nota <span class="opt">opcional</span></label>
+              <textarea id="reviewNote" class="note-input" rows="3" placeholder="Qué te pareció, con quién la viste, si la recomendás…"></textarea>
+            </div>
+            <div class="form-row">
+              <button type="submit" id="reviewSubmit" class="btn btn-gold" disabled>Guardar puntuación</button>
+              <span id="reviewHint" class="form-hint">Elegí quién puntúa para poder guardar.</span>
+            </div>
+          </form>
+
+          <div class="reviews">
+            <h3 class="reviews-title">Puntuaciones</h3>
+            <div id="reviewsList" class="reviews-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wheel-section">
+      <div class="wheel-frame">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="900" height="900" role="img" aria-label="Ruleta de películas"></canvas>
+        <div class="hub" aria-hidden="true"></div>
+      </div>
+      <button id="spin" class="btn btn-gold btn-spin" type="button">Girar la ruleta</button>
+      <p id="spinStatus" class="spin-status">Tocá «Girar la ruleta» para sortear la película de la noche.</p>
+    </section>
+
+    <section class="cartelera">
+      <div class="cartelera-head">
+        <h2 id="carteleraTitle">Cartelera</h2>
+        <p id="carteleraSub"></p>
+      </div>
+      <div class="cartelera-tools">
+        <input id="search" class="search" type="search" placeholder="Buscar película…" aria-label="Buscar película">
+        <button id="addMovieBtn" class="btn-ghost" type="button">+ Agregar película</button>
+      </div>
+
+      <form id="addMovieForm" class="add-movie-form" hidden>
+        <div class="amf-fields">
+          <input id="amfTitle" type="text" placeholder="Título de la película *" aria-label="Título" required>
+          <input id="amfYear" type="number" placeholder="Año" aria-label="Año" min="1890" max="2100">
+        </div>
+        <div class="amf-actions">
+          <span class="form-hint">Se agrega a <b id="amfTarget">esta ruleta</b>.</span>
+          <button type="button" id="amfCancel" class="btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-gold">Agregar</button>
+        </div>
+      </form>
+
+      <div class="cartelera-section">
+        <div class="section-head"><h3>Por ver <span id="unseenCount" class="section-count"></span></h3></div>
+        <div id="filmListUnseen" class="film-list"></div>
+      </div>
+
+      <div class="cartelera-section">
+        <button id="seenToggle" class="section-head section-toggle" type="button" aria-expanded="true">
+          <h3>Ya vistas <span id="seenCount" class="section-count"></span></h3>
+          <span class="chev" aria-hidden="true">▾</span>
+        </button>
+        <div id="filmListSeen" class="film-list"></div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div id="syncStatus" class="sync-status" aria-live="polite"></div>
+      <div class="foot-actions">
+        <button id="exportBtn" type="button" class="linkish">Exportar datos</button>
+        <span aria-hidden="true">·</span>
+        <button id="importBtn" type="button" class="linkish">Importar datos</button>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
+      </div>
+      <span class="foot-dim">Ciclo de cine · Fran &amp; Juanma · portadas de TMDb</span>
+    </footer>
+  </div>
+
+  <div id="rouletteModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rouletteModalTitle">
+      <button class="modal-close" id="rouletteModalClose" type="button" aria-label="Cerrar">&times;</button>
+      <h3 id="rouletteModalTitle">Nueva ruleta</h3>
+      <p class="modal-hint">Armá una ruleta aparte (por ejemplo «solo terror») sin tocar el ciclo original.</p>
+      <label class="modal-field">
+        <span>Nombre</span>
+        <input id="rouletteName" type="text" placeholder="Solo terror" maxlength="40">
+      </label>
+      <div class="modal-field">
+        <span>Películas <b id="rouletteCount">(0)</b></span>
+        <input id="roulettePickerSearch" type="search" placeholder="Buscar para agregar…">
+        <div id="roulettePicker" class="picker"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="rouletteDelete" class="btn-danger" type="button" hidden>Eliminar</button>
+        <span class="spacer"></span>
+        <button id="rouletteCancel" class="btn-ghost" type="button">Cancelar</button>
+        <button id="rouletteSave" class="btn btn-gold" type="button">Crear ruleta</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="configBanner" class="config-banner" hidden></div>
+
+  <script src="config.js?v=8"></script>
+  <script src="movies.js?v=8"></script>
+  <script src="store.js?v=8"></script>
+  <script src="app.js?v=8"></script>
+</body>
+</html>
