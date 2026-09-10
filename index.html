@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -24,7 +24,7 @@
     <header class="marquee">
       <div class="kicker">Ciclo de cine</div>
       <h1>La Ruleta del Ciclo</h1>
-      <p class="sub">Girá la ruleta, que el azar elija la película de la noche, y dejá tu puntuación.</p>
+      <p class="sub">Abrí la caja, que el azar elija la película de la noche, y dejá tu puntuación.</p>
       <div class="bulbs" aria-hidden="true">
         <span></span><span></span><span></span><span></span><span></span>
         <span></span><span></span><span></span><span></span><span></span><span></span>
@@ -96,28 +96,24 @@
 
     <section class="wheel-section">
       <div class="mode-bar">
-        <div class="mode-toggle" role="radiogroup" aria-label="Modo de sorteo">
-          <button type="button" class="mode-opt" data-mode="ruleta" role="radio" aria-checked="true">🎡 Ruleta</button>
-          <button type="button" class="mode-opt" data-mode="caja" role="radio" aria-checked="false">📦 Caja</button>
-        </div>
         <button type="button" id="muteBtn" class="mute-btn" aria-label="Sonido" title="Sonido">🔊</button>
       </div>
 
-      <div id="wheelWrap" class="wheel-frame">
+      <div id="wheelWrap" class="wheel-frame" hidden>
         <div class="pointer" aria-hidden="true"></div>
         <canvas id="wheel" width="900" height="900" role="img" aria-label="Ruleta de películas"></canvas>
         <div class="hub" aria-hidden="true"></div>
       </div>
 
-      <div id="caseWrap" class="case-box" hidden>
+      <div id="caseWrap" class="case-box">
         <div class="case-marker" aria-hidden="true"></div>
         <div id="caseTrack" class="case-track"></div>
         <div class="case-fade case-fade-l" aria-hidden="true"></div>
         <div class="case-fade case-fade-r" aria-hidden="true"></div>
       </div>
 
-      <button id="spin" class="btn btn-gold btn-spin" type="button">Girar la ruleta</button>
-      <p id="spinStatus" class="spin-status">Tocá «Girar la ruleta» para sortear la película de la noche.</p>
+      <button id="spin" class="btn btn-gold btn-spin" type="button">Sortear película</button>
+      <p id="spinStatus" class="spin-status">Tocá «Sortear película» para elegir la de la noche.</p>
     </section>
 
     <div id="caseReveal" class="case-reveal" hidden>
@@ -271,10 +267,10 @@
 
   <div id="configBanner" class="config-banner" hidden></div>
 
-  <script src="config.js?v=20"></script>
-  <script src="movies.js?v=20"></script>
-  <script src="tmdb.js?v=20"></script>
-  <script src="store.js?v=20"></script>
-  <script src="app.js?v=20"></script>
+  <script src="config.js?v=21"></script>
+  <script src="movies.js?v=21"></script>
+  <script src="tmdb.js?v=21"></script>
+  <script src="store.js?v=21"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>

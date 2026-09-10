@@ -57,14 +57,14 @@
     search: "",
     wheelKey: "",
     spinning: false,
-    mode: "ruleta",       // "ruleta" | "caja"
+    mode: "caja",         // modo único: caja estilo CS2 (la ruleta clásica se sacó)
     revealId: null,
     modalMode: null,      // "new" | "edit"
     modalRouletteId: null,
     modalPicked: {},      // id -> true
     modalConfirmDelete: false,
   };
-  try { ui.mode = localStorage.getItem("cc.mode.v1") === "caja" ? "caja" : "ruleta"; } catch (e) {}
+  ui.mode = "caja";   // siempre caja
 
   /* ================= login (soft gate, no es seguridad real) ================= */
   var ACCOUNTS = {
