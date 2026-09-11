@@ -70,7 +70,6 @@
   var ACCOUNTS = {
     "fran":     { name: "Fran",     pass: "ciclo123", role: "admin" },
     "juanma":   { name: "Juanma",   pass: "ciclo123", role: "admin" },
-    "invitado": { name: "Invitado", pass: "123",      role: "guest" },
   };
   var session = null;
   try { session = JSON.parse(localStorage.getItem("cc.session.v1") || "null"); } catch (e) {}
@@ -81,8 +80,12 @@
     if (!acc || acc.pass !== p) return false;
     session = { name: acc.name, role: acc.role };
     try { localStorage.setItem("cc.session.v1", JSON.stringify(session)); } catch (e) {}
-    if (acc.role === "admin") S.setDeviceAuthor(acc.name);
+    S.setDeviceAuthor(acc.name);
     return true;
+  }
+  function loginGuest() {
+    session = { name: "Invitado", role: "guest" };
+    try { localStorage.setItem("cc.session.v1", JSON.stringify(session)); } catch (e) {}
   }
   function logout() {
     session = null;
@@ -90,7 +93,7 @@
     openLogin();
     render();
   }
-  function openLogin() { $("loginModal").hidden = false; setTimeout(function () { $("loginUser").focus(); }, 50); }
+  function openLogin() { $("loginModal").hidden = false; setTimeout(function () { $("guestEnterBtn").focus(); }, 50); }
   function closeLogin() { $("loginModal").hidden = true; }
 
   function renderAuth() {
@@ -1239,6 +1242,12 @@
   });
 
   /* ---------------- login ---------------- */
+  $("guestEnterBtn").addEventListener("click", function () {
+    loginGuest();
+    closeLogin();
+    render();
+    if (ui.currentId) buildReviewForm();
+  });
   $("loginForm").addEventListener("submit", function (e) {
     e.preventDefault();
     if (login($("loginUser").value, $("loginPass").value)) {

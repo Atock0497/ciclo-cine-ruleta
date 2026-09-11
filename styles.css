@@ -885,6 +885,15 @@ canvas#wheel{
 .modal-login{ width:min(380px, 100%); }
 .modal-login h3{ margin-bottom:4px; }
 .login-error{ color:var(--red); font-size:12.5px; margin:2px 0 0; }
+.btn-guest-enter{ width:100%; text-align:center; }
+.login-details{ margin-top:18px; border-top:1px solid var(--line-soft); padding-top:12px; }
+.login-details summary{
+  cursor:pointer; font-size:12.5px; color:var(--ivory-dim); list-style:none;
+}
+.login-details summary::-webkit-details-marker{ display:none; }
+.login-details summary:hover{ color:var(--gold); }
+.login-details[open] summary{ margin-bottom:10px; color:var(--gold); }
+.login-details form{ margin-top:10px; }
 .edit-movie-btn{
   margin-top:8px;
   background:none; border:1px solid var(--line); border-radius:999px;

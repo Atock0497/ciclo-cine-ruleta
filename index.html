@@ -254,22 +254,26 @@
     <div class="modal-backdrop"></div>
     <div class="modal-card modal-login" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <h3 id="loginTitle">Entrar</h3>
-      <p class="modal-hint">Fran y Juanma pueden editar la lista. Invitado solo mira y sortea.</p>
-      <form id="loginForm">
-        <label class="modal-field">
-          <span>Usuario</span>
-          <input id="loginUser" type="text" autocomplete="username" placeholder="Fran / Juanma / Invitado">
-        </label>
-        <label class="modal-field">
-          <span>Contraseña</span>
-          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••">
-        </label>
-        <p id="loginError" class="login-error" hidden>Usuario o contraseña incorrectos.</p>
-        <div class="modal-actions">
-          <span class="spacer"></span>
-          <button type="submit" class="btn btn-gold">Entrar</button>
-        </div>
-      </form>
+      <button id="guestEnterBtn" type="button" class="btn btn-ghost btn-guest-enter">Entrar como invitado</button>
+      <p class="modal-hint">Como invitado solo mirás la página y girás la ruleta.</p>
+      <details id="loginDetails" class="login-details">
+        <summary>Soy Fran o Juanma</summary>
+        <form id="loginForm">
+          <label class="modal-field">
+            <span>Usuario</span>
+            <input id="loginUser" type="text" autocomplete="username" placeholder="Fran / Juanma">
+          </label>
+          <label class="modal-field">
+            <span>Contraseña</span>
+            <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••">
+          </label>
+          <p id="loginError" class="login-error" hidden>Usuario o contraseña incorrectos.</p>
+          <div class="modal-actions">
+            <span class="spacer"></span>
+            <button type="submit" class="btn btn-gold">Entrar</button>
+          </div>
+        </form>
+      </details>
     </div>
   </div>
 
