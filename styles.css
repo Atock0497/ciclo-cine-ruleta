@@ -1000,6 +1000,8 @@ canvas#wheel{
   }
   .film-list{ max-height:none; grid-template-columns:1fr; }
   .cartelera-tools{ flex-direction:column; align-items:stretch; }
+  /* en columna el flex-basis pasa a ser ALTO: sin esto el buscador se estira a 220px+ */
+  .search{ flex:0 0 auto; }
   .roulette-bar{ justify-content:flex-start; overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
   .rchip, .rchip-add{ flex:0 0 auto; }
   .config-banner{ bottom:0; border-radius:12px 12px 0 0; }
