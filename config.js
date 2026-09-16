@@ -35,6 +35,27 @@ window.CC_CONFIG = {
   omdbApiKey: "",
 
   /* ---------------------------------------------------------------
+     Login con Google  →  entrar en un click, sin usuario/contraseña
+     ---------------------------------------------------------------
+     Sin esto: el botón "Continuar con Google" no aparece (queda el
+     login de siempre: invitado / Fran / Juanma).
+     Con esto: cualquiera con cuenta de Google puede entrar solo, y
+     vos les das permisos (puntuar / agregar películas / administrar
+     usuarios) desde el panel de "usuarios" una vez que entraron.
+
+     Cómo sacarlo (gratis, ~3 min):
+       1. https://console.cloud.google.com/apis/credentials
+       2. "Crear credenciales" → "ID de cliente de OAuth"
+          → Tipo de aplicación: "Aplicación web"
+       3. En "Orígenes de JavaScript autorizados" agregá la URL donde
+          vive la página (ej. https://tu-proyecto.vercel.app). Si la
+          probás en localhost, agregá también http://localhost:PUERTO.
+       4. Copiá el "ID de cliente" (termina en .apps.googleusercontent.com)
+          y pegalo acá abajo.
+  --------------------------------------------------------------- */
+  googleClientId: "",
+
+  /* ---------------------------------------------------------------
      2) Supabase  →  datos compartidos entre Fran y Juanma
      ---------------------------------------------------------------
      Sin esto, cada navegador guarda lo suyo por separado.

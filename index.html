@@ -9,13 +9,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
 
   <div id="userBadge" class="user-badge" hidden>
+    <img id="userAvatar" class="user-avatar" alt="" hidden>
     <span id="userName" class="user-name"></span>
+    <button type="button" id="adminUsersBtn" class="user-admin" hidden>usuarios</button>
     <button type="button" id="logoutBtn" class="user-logout">salir</button>
   </div>
 
@@ -62,7 +65,7 @@
 
         <div id="panel-puntuar" class="panel" role="tabpanel" aria-labelledby="tab-puntuar" hidden>
           <p id="reviewLock" class="review-lock" hidden>
-            Iniciá sesión como <b>Fran</b> o <b>Juanma</b> para puntuar. (Invitado solo puede ver.)
+            No tenés permiso para puntuar todavía.
             <button type="button" id="reviewLockLogin" class="linkish">Iniciar sesión</button>
           </p>
           <form id="reviewForm" class="review-form" novalidate>
@@ -189,8 +192,8 @@
          van fijas a los lados (ver @media en styles.css); en angostas caen
          acá al final, en el flujo normal. Puramente decorativas (aria-hidden). -->
     <div class="deco-flanks" aria-hidden="true">
-      <img class="deco-flank deco-flank-l" src="deco-izquierda.png?v=24" alt="" loading="lazy" decoding="async" width="800" height="800">
-      <img class="deco-flank deco-flank-r" src="deco-derecha.png?v=24" alt="" loading="lazy" decoding="async" width="800" height="800">
+      <img class="deco-flank deco-flank-l" src="deco-izquierda.png?v=25" alt="" loading="lazy" decoding="async" width="800" height="800">
+      <img class="deco-flank deco-flank-r" src="deco-derecha.png?v=25" alt="" loading="lazy" decoding="async" width="800" height="800">
     </div>
   </div>
 
@@ -254,6 +257,11 @@
     <div class="modal-backdrop"></div>
     <div class="modal-card modal-login" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
       <h3 id="loginTitle">Entrar</h3>
+      <div id="googleLoginSection" class="google-login-section" hidden>
+        <div id="googleBtnContainer" class="google-btn-wrap"></div>
+        <p class="modal-hint">Entrás con tu cuenta de Google. Al principio solo podés mirar y girar la ruleta; te habilitan más permisos desde el panel de usuarios.</p>
+        <div class="modal-or"><span>o</span></div>
+      </div>
       <button id="guestEnterBtn" type="button" class="btn btn-ghost btn-guest-enter">Entrar como invitado</button>
       <p class="modal-hint">Como invitado solo mirás la página y girás la ruleta.</p>
       <details id="loginDetails" class="login-details">
@@ -277,12 +285,22 @@
     </div>
   </div>
 
+  <div id="usersModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-card modal-users" role="dialog" aria-modal="true" aria-labelledby="usersTitle">
+      <button id="usersModalClose" class="modal-close" type="button" aria-label="Cerrar">×</button>
+      <h3 id="usersTitle">Usuarios</h3>
+      <p class="modal-hint">Gente que entró con Google. Marcá qué puede hacer cada uno.</p>
+      <div id="usersList" class="users-list"></div>
+    </div>
+  </div>
+
   <div id="configBanner" class="config-banner" hidden></div>
 
-  <script src="config.js?v=24"></script>
-  <script src="movies.js?v=24"></script>
-  <script src="tmdb.js?v=24"></script>
-  <script src="store.js?v=24"></script>
-  <script src="app.js?v=24"></script>
+  <script src="config.js?v=25"></script>
+  <script src="movies.js?v=25"></script>
+  <script src="tmdb.js?v=25"></script>
+  <script src="store.js?v=25"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

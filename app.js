@@ -75,6 +75,23 @@
   try { session = JSON.parse(localStorage.getItem("cc.session.v1") || "null"); } catch (e) {}
   function isAdmin() { return !!(session && session.role === "admin"); }
   function currentUser() { return session ? session.name : null; }
+
+  // permisos efectivos de la sesión actual. Fran/Juanma (cuentas de toda la
+  // vida) y el primero que haya entrado alguna vez con Google tienen los tres;
+  // el resto de la gente de Google arranca sin ninguno (solo jugar) hasta que
+  // alguien con "administrar usuarios" se los da desde el panel.
+  function myPermissions() {
+    if (isAdmin()) return { canRate: true, canAddMovies: true, canManageUsers: true };
+    if (session && session.role === "google") {
+      var u = S.googleUser(session.sub);
+      if (u && u.permissions) return u.permissions;
+    }
+    return { canRate: false, canAddMovies: false, canManageUsers: false };
+  }
+  function canRate() { return !!myPermissions().canRate; }
+  function canAddMovies() { return !!myPermissions().canAddMovies; }
+  function canManageUsers() { return !!myPermissions().canManageUsers; }
+
   function login(u, p) {
     var acc = ACCOUNTS[String(u || "").trim().toLowerCase()];
     if (!acc || acc.pass !== p) return false;
@@ -87,13 +104,52 @@
     session = { name: "Invitado", role: "guest" };
     try { localStorage.setItem("cc.session.v1", JSON.stringify(session)); } catch (e) {}
   }
+  // decodifica el "payload" de un JWT (base64url) sin verificar la firma:
+  // alcanza para leer nombre/mail/foto, en línea con que este login es un
+  // gate de comodidad, no una barrera de seguridad real.
+  function decodeJwt(token) {
+    try {
+      var b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      var json = decodeURIComponent(atob(b64).split("").map(function (c) {
+        return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(""));
+      return JSON.parse(json);
+    } catch (e) { return null; }
+  }
+  function loginGoogle(credentialResponse) {
+    var p = credentialResponse && decodeJwt(credentialResponse.credential);
+    if (!p || !p.sub) return false;
+    var rec = S.upsertGoogleUser({ sub: p.sub, email: p.email, name: p.name || p.email, picture: p.picture });
+    session = { name: rec.name, role: "google", sub: rec.sub, picture: rec.picture || null };
+    try { localStorage.setItem("cc.session.v1", JSON.stringify(session)); } catch (e) {}
+    S.setDeviceAuthor(rec.name);
+    return true;
+  }
   function logout() {
     session = null;
     try { localStorage.removeItem("cc.session.v1"); } catch (e) {}
+    if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
     openLogin();
     render();
   }
-  function openLogin() { $("loginModal").hidden = false; setTimeout(function () { $("guestEnterBtn").focus(); }, 50); }
+  function initGoogleButton() {
+    var section = $("googleLoginSection");
+    if (!CONFIG.googleClientId) { section.hidden = true; return; }
+    if (!window.google || !google.accounts || !google.accounts.id) return; // el script de Google puede no haber cargado todavía
+    section.hidden = false;
+    google.accounts.id.initialize({
+      client_id: CONFIG.googleClientId,
+      callback: function (resp) { if (loginGoogle(resp)) { closeLogin(); render(); } },
+    });
+    var box = $("googleBtnContainer");
+    box.innerHTML = "";
+    google.accounts.id.renderButton(box, { theme: "outline", size: "large", text: "continue_with", shape: "pill", locale: "es", width: 300 });
+  }
+  function openLogin() {
+    $("loginModal").hidden = false;
+    initGoogleButton();
+    setTimeout(function () { $("guestEnterBtn").focus(); }, 50);
+  }
   function closeLogin() { $("loginModal").hidden = true; }
 
   function renderAuth() {
@@ -101,12 +157,75 @@
     if (session) {
       badge.hidden = false;
       $("userName").textContent = session.name;
+      var av = $("userAvatar");
+      if (session.picture) { av.src = session.picture; av.hidden = false; }
+      else { av.hidden = true; av.removeAttribute("src"); }
     } else {
       badge.hidden = true;
     }
-    var adm = isAdmin();
-    $("addMovieBtn").hidden = !adm;
-    if (!adm) { $("addMovieForm").hidden = true; }
+    var canManage = !!session && canManageUsers();
+    $("adminUsersBtn").hidden = !canManage;
+    var canAdd = canAddMovies();
+    $("addMovieBtn").hidden = !canAdd;
+    if (!canAdd) { $("addMovieForm").hidden = true; }
+  }
+
+  /* ---------------- panel de usuarios (permisos) ---------------- */
+  function openUsersPanel() {
+    if (!canManageUsers()) return;
+    renderUsersPanel();
+    $("usersModal").hidden = false;
+  }
+  function closeUsersPanel() { $("usersModal").hidden = true; }
+  function renderUsersPanel() {
+    var list = $("usersList");
+    var users = S.allGoogleUsers();
+    if (!users.length) {
+      list.innerHTML = '<p class="modal-hint">Todavía nadie entró con Google.</p>';
+      return;
+    }
+    list.innerHTML = users.map(function (u) {
+      var pic = u.picture
+        ? '<img class="user-row-pic" src="' + esc(u.picture) + '" alt="">'
+        : '<span class="user-row-pic user-row-pic-fallback">' + esc((u.name || "?").charAt(0).toUpperCase()) + '</span>';
+      var perms = u.permissions || {};
+      function cb(key, label) {
+        return '<label class="user-perm"><input type="checkbox" data-perm="' + key + '"' +
+          (perms[key] ? " checked" : "") + '> ' + label + '</label>';
+      }
+      return '<div class="user-row" data-sub="' + esc(u.sub) + '">' +
+        pic +
+        '<div class="user-row-info"><b>' + esc(u.name) + '</b>' +
+          (u.email ? '<span>' + esc(u.email) + '</span>' : '') +
+        '</div>' +
+        '<div class="user-row-perms">' +
+          cb("canRate", "Puntuar") + cb("canAddMovies", "Agregar películas") + cb("canManageUsers", "Administrar usuarios") +
+        '</div>' +
+        '<button type="button" class="user-revoke" aria-label="Quitar acceso">Quitar</button>' +
+      '</div>';
+    }).join("");
+    [].forEach.call(list.querySelectorAll(".user-row"), function (row) {
+      var sub = row.getAttribute("data-sub");
+      [].forEach.call(row.querySelectorAll("input[type=checkbox]"), function (box) {
+        box.addEventListener("change", function () {
+          var patch = {};
+          patch[box.getAttribute("data-perm")] = box.checked;
+          S.setUserPermissions(sub, patch);
+          renderAuth();
+        });
+      });
+      var rm = row.querySelector(".user-revoke");
+      rm.addEventListener("click", function () {
+        if (rm.dataset.armed) {
+          S.removeGoogleUser(sub);
+          renderUsersPanel();
+          renderAuth();
+        } else {
+          rm.dataset.armed = "1"; rm.textContent = "¿seguro?"; rm.classList.add("armed");
+          setTimeout(function () { if (rm) { rm.textContent = "Quitar"; rm.classList.remove("armed"); delete rm.dataset.armed; } }, 2500);
+        }
+      });
+    });
   }
 
   /* ---------------- TMDb ---------------- */
@@ -286,7 +405,7 @@
       chip.innerHTML =
         '<button class="rchip-main" type="button">' + esc(r.name) +
         ' <span class="rchip-count">' + count + '</span></button>' +
-        (r.builtin || !isAdmin() ? "" : '<button class="rchip-edit" type="button" aria-label="Editar ruleta">✎</button>');
+        (r.builtin || !canAddMovies() ? "" : '<button class="rchip-edit" type="button" aria-label="Editar ruleta">✎</button>');
       chip.querySelector(".rchip-main").addEventListener("click", function () {
         if (S.activeRouletteId() !== r.id) { S.setActiveRouletteId(r.id); ui.search = ""; $("search").value = ""; }
       });
@@ -294,7 +413,7 @@
       if (editBtn) editBtn.addEventListener("click", function () { openRouletteModal("edit", r.id); });
       bar.appendChild(chip);
     });
-    if (isAdmin()) {
+    if (canAddMovies()) {
       var add = document.createElement("button");
       add.className = "rchip-add";
       add.type = "button";
@@ -318,7 +437,7 @@
           (S.isSeen(m) ? '<span class="seen-dot" title="Ya vista">●</span>' : "") +
         '</span>' +
       '</button>' +
-      (m.base || !isAdmin() ? "" : '<button class="film-remove" type="button" aria-label="Quitar película" title="Quitar de todas las ruletas">✕</button>');
+      (m.base || !canAddMovies() ? "" : '<button class="film-remove" type="button" aria-label="Quitar película" title="Quitar de todas las ruletas">✕</button>');
     row.querySelector(".film-open").addEventListener("click", function () { openMovie(m.id, false); });
     var rm = row.querySelector(".film-remove");
     if (rm) rm.addEventListener("click", function () {
@@ -435,7 +554,7 @@
     if (a != null) bits.push('<span class="avg">★ <b>' + a.toFixed(1) +
       "</b>/10 (" + S.reviewsFor(m.id).length + ")</span>");
     $("resultMeta").innerHTML = bits.join('<span aria-hidden="true">·</span>');
-    $("editMovieBtn").hidden = !isAdmin();
+    $("editMovieBtn").hidden = !canAddMovies();
 
     // poster
     var src = bestPoster(m, "w500");
@@ -485,8 +604,8 @@
   }
 
   function buildReviewForm() {
-    // solo Fran / Juanma pueden puntuar
-    if (!isAdmin()) {
+    // solo quien tenga el permiso de puntuar
+    if (!canRate()) {
       $("reviewForm").hidden = true;
       $("reviewLock").hidden = false;
       return;
@@ -548,7 +667,7 @@
   function syncStarButtons() { paintStars(ui.formStars); }
 
   function updateSubmitState() {
-    if (!isAdmin()) return;
+    if (!canRate()) return;
     var ready = !!ui.formAuthor && ui.formStars >= 0.5;
     $("reviewSubmit").disabled = !ready;
     if (ui.formFlashUntil && Date.now() < ui.formFlashUntil) return; // no pisar el "¡Guardado!"
@@ -1061,7 +1180,7 @@
     return m ? parseInt(m[1], 10) : null;
   }
   function openMovieModal(id) {
-    if (!isAdmin()) return;
+    if (!canAddMovies()) return;
     var m = S.movieById(id);
     if (!m) return;
     mmId = id; mmConfirmDel = false;
@@ -1136,7 +1255,7 @@
   function renderHiddenSection() {
     var sec = $("hiddenSection");
     var hidden = S.hiddenMovies();
-    if (!hidden.length || !isAdmin()) { sec.hidden = true; return; }
+    if (!hidden.length || !canAddMovies()) { sec.hidden = true; return; }
     sec.hidden = false;
     $("hiddenCount").textContent = "(" + hidden.length + ")";
     var list = $("filmListHidden");
@@ -1231,7 +1350,7 @@
   });
   $("reviewForm").addEventListener("submit", function (e) {
     e.preventDefault();
-    if (!isAdmin() || !ui.currentId || !ui.formAuthor || ui.formStars < 0.5) { updateSubmitState(); return; }
+    if (!canRate() || !ui.currentId || !ui.formAuthor || ui.formStars < 0.5) { updateSubmitState(); return; }
     var mid = ui.currentId;
     var wasFirst = S.reviewsFor(mid).length === 0;
     var wasEditing = !!S.myReview(mid, ui.formAuthor);
@@ -1262,6 +1381,9 @@
   });
   $("logoutBtn").addEventListener("click", logout);
   $("reviewLockLogin").addEventListener("click", openLogin);
+  $("adminUsersBtn").addEventListener("click", openUsersPanel);
+  $("usersModalClose").addEventListener("click", closeUsersPanel);
+  $("usersModal").querySelector(".modal-backdrop").addEventListener("click", closeUsersPanel);
   $("search").addEventListener("input", function (e) { ui.search = e.target.value; renderCartelera(); });
   $("spin").addEventListener("click", function () {
     if (ui.mode === "caja") openCase(); else spin();

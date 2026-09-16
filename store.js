@@ -65,6 +65,7 @@ window.CCStore = (function () {
       movies: {}, roulettes: [], reviews: {}, meta: {}, lastResult: {},
       deletedReviews: {},   // { reviewId: ts } — lápidas para que un borrado no vuelva al sincronizar
       overrides: {},        // { movieId: { title?, year?, tmdbId?, poster?, hidden? } } — ediciones sobre pelis base o agregadas
+      users: {},             // { googleSub: { sub, email, name, picture, permissions:{canRate,canAddMovies,canManageUsers}, createdAt, lastLoginAt, at } }
     };
   }
 
@@ -79,6 +80,7 @@ window.CCStore = (function () {
     d.lastResult = doc.lastResult && typeof doc.lastResult === "object" ? doc.lastResult : {};
     d.deletedReviews = doc.deletedReviews && typeof doc.deletedReviews === "object" ? doc.deletedReviews : {};
     d.overrides = doc.overrides && typeof doc.overrides === "object" ? doc.overrides : {};
+    d.users = doc.users && typeof doc.users === "object" ? doc.users : {};
     d.roulettes = Array.isArray(doc.roulettes) ? doc.roulettes.filter(Boolean) : [];
     // aplicar lápidas + colapsar a UNA reseña por autor (la más nueva)
     Object.keys(d.reviews).forEach(function (mid) {
@@ -153,6 +155,14 @@ window.CCStore = (function () {
     [remote.overrides, local.overrides].forEach(function (src) {
       Object.keys(src || {}).forEach(function (id) {
         if (!out.overrides[id] || (src[id].at || 0) >= (out.overrides[id].at || 0)) out.overrides[id] = src[id];
+      });
+    });
+
+    // usuarios de Google: unión por sub, gana el más nuevo (por `at`)
+    out.users = {};
+    [remote.users, local.users].forEach(function (src) {
+      Object.keys(src || {}).forEach(function (sub) {
+        if (!out.users[sub] || (src[sub].at || 0) >= (out.users[sub].at || 0)) out.users[sub] = src[sub];
       });
     });
 
@@ -473,6 +483,49 @@ window.CCStore = (function () {
     mutate(function (d) { d.meta[mid] = Object.assign({}, meta, { at: nowMs() }); });
   }
 
+  /* ---------- usuarios de Google + permisos ---------- */
+  // Alguien que entra con Google por primera vez arranca "solo jugar" (sin
+  // permisos), salvo que sea el primero en entrar alguna vez -> ese queda
+  // con todos los permisos, para no quedar sin nadie que administre.
+  function upsertGoogleUser(profile) {
+    var sub = String(profile.sub);
+    mutate(function (d) {
+      var existing = d.users[sub];
+      if (existing) {
+        existing.email = profile.email || existing.email;
+        existing.name = profile.name || existing.name;
+        existing.picture = profile.picture || existing.picture || null;
+        existing.lastLoginAt = nowMs();
+        existing.at = nowMs();
+      } else {
+        var isFirstEver = Object.keys(d.users).length === 0;
+        d.users[sub] = {
+          sub: sub, email: profile.email || null, name: profile.name || profile.email || "Sin nombre",
+          picture: profile.picture || null,
+          permissions: { canRate: isFirstEver, canAddMovies: isFirstEver, canManageUsers: isFirstEver },
+          createdAt: nowMs(), lastLoginAt: nowMs(), at: nowMs(),
+        };
+      }
+    });
+    return clone(state.users[sub]);
+  }
+  function googleUser(sub) { return state.users[sub] ? clone(state.users[sub]) : null; }
+  function allGoogleUsers() {
+    return Object.keys(state.users).map(function (k) { return state.users[k]; })
+      .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+  }
+  function setUserPermissions(sub, patch) {
+    mutate(function (d) {
+      var u = d.users[sub];
+      if (!u) return;
+      u.permissions = Object.assign({}, u.permissions, patch);
+      u.at = nowMs();
+    });
+  }
+  function removeGoogleUser(sub) {
+    mutate(function (d) { delete d.users[sub]; });
+  }
+
   /* ---------- export / import ---------- */
   function exportDoc() { return clone(state); }
   function importDoc(obj, replace) {
@@ -534,6 +587,12 @@ window.CCStore = (function () {
 
     metaFor: metaFor,
     saveMeta: saveMeta,
+
+    upsertGoogleUser: upsertGoogleUser,
+    googleUser: googleUser,
+    allGoogleUsers: allGoogleUsers,
+    setUserPermissions: setUserPermissions,
+    removeGoogleUser: removeGoogleUser,
 
     lastResult: lastResult,
     setLastResult: setLastResult,

@@ -85,6 +85,54 @@ las portadas que baja quedan guardadas y el otro las ve igual.
 
 ---
 
+## 3) Login con Google + permisos por usuario  (opcional)
+
+Sin esto, el login sigue siendo el de siempre: invitado / Fran / Juanma con
+contraseña. Con esto se agrega un botón **"Continuar con Google"**: cualquiera
+entra en un click con su cuenta, sin pedirte usuario ni clave.
+
+1. Andá a <https://console.cloud.google.com/apis/credentials> (con cualquier
+   cuenta de Google; si nunca usaste Google Cloud te va a pedir crear un
+   proyecto primero, cualquier nombre sirve).
+2. **Crear credenciales** → **ID de cliente de OAuth**.
+   - Tipo de aplicación: **Aplicación web**.
+   - **Orígenes de JavaScript autorizados**: agregá la URL donde vive la
+     página (ej. `https://tu-proyecto.vercel.app`, sin `/` al final). Si la
+     probás en tu PC, agregá también `http://localhost:PUERTO`.
+   - No hace falta cargar "URI de redireccionamiento": este login usa el
+     flujo de un solo click (Google Identity Services), no redirige a
+     ningún lado.
+3. Copiá el **ID de cliente** (termina en `.apps.googleusercontent.com`) y
+   pegalo en `config.js`:
+
+   ```js
+   googleClientId: "123456789-abc...apps.googleusercontent.com",
+   ```
+
+4. Volvé a subir la carpeta. Listo: aparece el botón de Google en el login.
+
+**Cómo funcionan los permisos:** la primera persona que entre alguna vez con
+Google queda automáticamente con todos los permisos (para que no quede nadie
+sin poder administrar). Todo el que entre después arranca **solo con
+"jugar"** (mirar la cartelera y girar la ruleta), hasta que alguien con el
+permiso "Administrar usuarios" le habilite lo demás desde el botón
+**"usuarios"** que aparece al lado de "salir" una vez que entraste. Ahí se
+puede tildar, por persona: **puntuar**, **agregar películas** y
+**administrar usuarios** — y también quitarle el acceso a alguien.
+
+Fran y Juanma (las cuentas con contraseña de siempre) no se tocan: siguen
+teniendo todos los permisos como hasta ahora, sean o no las que entren con
+Google.
+
+**Sobre seguridad:** al igual que el resto del login de esta página (ver más
+abajo), esto es un gate de comodidad, no una barrera real: los permisos se
+guardan en el mismo documento compartido de Supabase y no hay ningún
+servidor que verifique la identidad de Google — alguien con conocimientos
+técnicos podría, en teoría, saltárselo. Para un ciclo de cine entre amigos
+está bien.
+
+---
+
 ## Backup
 
 En el pie de la página hay **Exportar datos** (te baja un `.json` con todo) e
