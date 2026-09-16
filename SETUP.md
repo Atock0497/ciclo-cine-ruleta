@@ -91,25 +91,43 @@ Sin esto, el login sigue siendo el de siempre: invitado / Fran / Juanma con
 contraseña. Con esto se agrega un botón **"Continuar con Google"**: cualquiera
 entra en un click con su cuenta, sin pedirte usuario ni clave.
 
+Es el botón "típico" de Google: al tocarlo te manda a la pantalla real de
+`accounts.google.com` a elegir la cuenta y validar, y de ahí te trae de
+vuelta a la página ya logueado (no hay ningún servidor propio de por medio).
+
 1. Andá a <https://console.cloud.google.com/apis/credentials> (con cualquier
    cuenta de Google; si nunca usaste Google Cloud te va a pedir crear un
    proyecto primero, cualquier nombre sirve).
-2. **Crear credenciales** → **ID de cliente de OAuth**.
+2. **Pantalla de consentimiento de OAuth** (si todavía no la configuraste):
+   tipo **Externo**, completá los campos obligatorios (nombre de la app,
+   mail de contacto) y guardá. Mientras la app esté en estado **"Prueba"**,
+   solo pueden entrar las cuentas de Google que agregues a mano en
+   **"Usuarios de prueba"** — ahí agregá los mails de Fran, Juanma, y de
+   cualquiera a quien quieras dejar entrar por ahora (hasta 100). Si más
+   adelante querés que entre cualquiera sin agregarlo a mano, se pasa a
+   producción desde ahí mismo.
+3. **Credenciales** → **Crear credenciales** → **ID de cliente de OAuth**.
    - Tipo de aplicación: **Aplicación web**.
-   - **Orígenes de JavaScript autorizados**: agregá la URL donde vive la
-     página (ej. `https://tu-proyecto.vercel.app`, sin `/` al final). Si la
-     probás en tu PC, agregá también `http://localhost:PUERTO`.
-   - No hace falta cargar "URI de redireccionamiento": este login usa el
-     flujo de un solo click (Google Identity Services), no redirige a
-     ningún lado.
-3. Copiá el **ID de cliente** (termina en `.apps.googleusercontent.com`) y
+   - **URIs de redireccionamiento autorizados**: acá sí hace falta, porque
+     este login redirige. Agregá la URL **exacta** de la página, por ejemplo:
+     - `https://tu-proyecto.vercel.app/` **y** `https://tu-proyecto.vercel.app/index.html`
+       (las dos, por si el link se abre con o sin el nombre del archivo)
+     - si la probás en tu PC: `http://localhost:PUERTO/index.html`
+4. Copiá el **ID de cliente** (termina en `.apps.googleusercontent.com`) y
    pegalo en `config.js`:
 
    ```js
    googleClientId: "123456789-abc...apps.googleusercontent.com",
    ```
 
-4. Volvé a subir la carpeta. Listo: aparece el botón de Google en el login.
+5. Volvé a subir la carpeta. Listo: aparece el botón de Google en el login.
+
+**Si al tocar el botón Google muestra "Esta app no está verificada":** es
+normal mientras el proyecto esté en modo "Prueba" (ver paso 2) — a quien
+haya agregado como usuario de prueba le va a dejar tocar "Avanzado" →
+"Ir a (nombre de tu app)" y entrar igual. No hace falta el proceso de
+verificación de Google para esto: alcanza con no salir del modo "Prueba"
+mientras solo entren ustedes.
 
 **Cómo funcionan los permisos:** la primera persona que entre alguna vez con
 Google queda automáticamente con todos los permisos (para que no quede nadie

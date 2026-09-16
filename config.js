@@ -43,13 +43,17 @@ window.CC_CONFIG = {
      vos les das permisos (puntuar / agregar películas / administrar
      usuarios) desde el panel de "usuarios" una vez que entraron.
 
-     Cómo sacarlo (gratis, ~3 min):
+     Es el botón típico: te manda a accounts.google.com a elegir la cuenta
+     y te trae de vuelta ya logueado (sin servidor propio de por medio).
+
+     Cómo sacarlo (gratis, ~3 min) — paso a paso completo en SETUP.md:
        1. https://console.cloud.google.com/apis/credentials
        2. "Crear credenciales" → "ID de cliente de OAuth"
           → Tipo de aplicación: "Aplicación web"
-       3. En "Orígenes de JavaScript autorizados" agregá la URL donde
-          vive la página (ej. https://tu-proyecto.vercel.app). Si la
-          probás en localhost, agregá también http://localhost:PUERTO.
+       3. En "URIs de redireccionamiento autorizados" agregá la URL
+          exacta de la página (ej. https://tu-proyecto.vercel.app/ y
+          .../index.html). Si la probás en localhost, agregá también
+          http://localhost:PUERTO/index.html.
        4. Copiá el "ID de cliente" (termina en .apps.googleusercontent.com)
           y pegalo acá abajo.
   --------------------------------------------------------------- */

@@ -116,8 +116,8 @@
       return JSON.parse(json);
     } catch (e) { return null; }
   }
-  function loginGoogle(credentialResponse) {
-    var p = credentialResponse && decodeJwt(credentialResponse.credential);
+  function loginGoogle(idToken) {
+    var p = idToken && decodeJwt(idToken);
     if (!p || !p.sub) return false;
     var rec = S.upsertGoogleUser({ sub: p.sub, email: p.email, name: p.name || p.email, picture: p.picture });
     session = { name: rec.name, role: "google", sub: rec.sub, picture: rec.picture || null };
@@ -128,26 +128,56 @@
   function logout() {
     session = null;
     try { localStorage.removeItem("cc.session.v1"); } catch (e) {}
-    if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
     openLogin();
     render();
   }
-  function initGoogleButton() {
-    var section = $("googleLoginSection");
-    if (!CONFIG.googleClientId) { section.hidden = true; return; }
-    if (!window.google || !google.accounts || !google.accounts.id) return; // el script de Google puede no haber cargado todavía
-    section.hidden = false;
-    google.accounts.id.initialize({
+
+  /* ---- Google: login "típico" con redirect (sin backend, sin SDK de Google) ----
+     Al tocar el botón, se navega a la pantalla de Google para elegir cuenta y
+     validar; Google redirige de vuelta a esta misma página con el token en el
+     fragmento (#) de la URL. Se lee acá, se loguea, y se limpia la URL. */
+  function googleRedirectUri() { return location.origin + location.pathname; }
+  function startGoogleLogin() {
+    if (!CONFIG.googleClientId) return;
+    var nonce = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try { sessionStorage.setItem("cc.googleNonce", nonce); } catch (e) {}
+    var params = {
       client_id: CONFIG.googleClientId,
-      callback: function (resp) { if (loginGoogle(resp)) { closeLogin(); render(); } },
+      redirect_uri: googleRedirectUri(),
+      response_type: "id_token",
+      scope: "openid email profile",
+      nonce: nonce,
+      prompt: "select_account",
+    };
+    var qs = Object.keys(params).map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+    location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + qs;
+  }
+  // se corre una sola vez al cargar: ¿venimos de un redirect de Google?
+  function consumeGoogleRedirect() {
+    var hash = location.hash || "";
+    if (hash.indexOf("id_token=") === -1) return false;
+    var params = {};
+    hash.replace(/^#/, "").split("&").forEach(function (kv) {
+      var i = kv.indexOf("=");
+      if (i === -1) return;
+      params[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " "));
     });
-    var box = $("googleBtnContainer");
-    box.innerHTML = "";
-    google.accounts.id.renderButton(box, { theme: "outline", size: "large", text: "continue_with", shape: "pill", locale: "es", width: 300 });
+    history.replaceState(null, "", location.pathname + location.search); // no dejar el token pegado en la URL
+    if (!params.id_token) return false;
+    var expected = null;
+    try { expected = sessionStorage.getItem("cc.googleNonce"); sessionStorage.removeItem("cc.googleNonce"); } catch (e) {}
+    var payload = decodeJwt(params.id_token);
+    if (expected && payload && payload.nonce !== expected) return false; // token no corresponde a este intento de login
+    return loginGoogle(params.id_token);
+  }
+  function updateGoogleButton() {
+    var has = !!CONFIG.googleClientId;
+    $("googleLoginBtn").hidden = !has;
+    $("googleLoginHint").hidden = has;
   }
   function openLogin() {
     $("loginModal").hidden = false;
-    initGoogleButton();
+    updateGoogleButton();
     setTimeout(function () { $("guestEnterBtn").focus(); }, 50);
   }
   function closeLogin() { $("loginModal").hidden = true; }
@@ -1379,6 +1409,7 @@
       $("loginError").hidden = false;
     }
   });
+  $("googleLoginBtn").addEventListener("click", startGoogleLogin);
   $("logoutBtn").addEventListener("click", logout);
   $("reviewLockLogin").addEventListener("click", openLogin);
   $("adminUsersBtn").addEventListener("click", openUsersPanel);
@@ -1421,6 +1452,7 @@
   try { setSeenCollapsed(localStorage.getItem("cc.seenCollapsed.v1") === "1"); } catch (e) {}
   S.onChange(render);
   S.init();
+  consumeGoogleRedirect();   // ¿venimos de elegir cuenta en Google? loguea antes del primer render
   render();
   if (!session) openLogin();
   addEventListener("resize", function () { setupCanvas(); ui.wheelKey = ""; renderWheel(); });
