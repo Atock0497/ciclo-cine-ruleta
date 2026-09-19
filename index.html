@@ -56,6 +56,7 @@
         <div id="panel-ficha" class="panel is-active" role="tabpanel" aria-labelledby="tab-ficha">
           <div id="externalRatings" class="ext-ratings" hidden></div>
           <p id="resultOverview" class="overview"></p>
+          <div id="resultTrailer" class="result-trailer" hidden></div>
           <div id="watchProviders" class="watch-providers" hidden></div>
           <div id="resultLinks" class="result-links"></div>
         </div>
@@ -171,6 +172,20 @@
           <span class="chev" aria-hidden="true">▾</span>
         </button>
         <div id="filmListHidden" class="film-list"></div>
+      </div>
+    </section>
+
+    <section class="cartelera ranking-section">
+      <div class="cartelera-head">
+        <h2>Ranking del ciclo</h2>
+        <p>Todas las películas vistas, de mejor a peor puntuadas.</p>
+      </div>
+      <div id="rankingSection" class="cartelera-section">
+        <button id="rankingToggle" class="section-head section-toggle" type="button" aria-expanded="true">
+          <h3>Vistas <span id="rankingCount" class="section-count"></span></h3>
+          <span class="chev" aria-hidden="true">▾</span>
+        </button>
+        <div id="filmListRanking" class="film-list ranking-list"></div>
       </div>
     </section>
 

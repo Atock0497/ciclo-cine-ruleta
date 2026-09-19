@@ -220,6 +220,49 @@
     });
   }
 
+  /* ---------------- trailer (TMDb videos, YouTube) ---------------- */
+  var _trailerCache = {};
+  function pickTrailerKey(results) {
+    var yt = (results || []).filter(function (v) { return v.site === "YouTube"; });
+    var pick = yt.filter(function (v) { return v.type === "Trailer" && v.official; })[0] ||
+      yt.filter(function (v) { return v.type === "Trailer"; })[0] ||
+      yt.filter(function (v) { return v.type === "Teaser"; })[0] ||
+      yt[0];
+    return pick ? pick.key : null;
+  }
+  function fetchVideos(tmdbId, lang) {
+    return fetch("https://api.themoviedb.org/3/movie/" + tmdbId + "/videos?api_key=" +
+      encodeURIComponent(CONFIG.tmdbApiKey) + "&language=" + encodeURIComponent(lang))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { return pickTrailerKey(d && d.results); })
+      .catch(function () { return null; });
+  }
+  function fetchTrailer(m) {
+    if (!m.tmdbId || !CONFIG.tmdbApiKey) return Promise.resolve(null);
+    if (_trailerCache.hasOwnProperty(m.tmdbId)) return Promise.resolve(_trailerCache[m.tmdbId]);
+    var lang = CONFIG.tmdbLanguage || "es-ES";
+    return fetchVideos(m.tmdbId, lang)
+      .then(function (key) { return key || (lang === "en-US" ? null : fetchVideos(m.tmdbId, "en-US")); })
+      .then(function (key) { _trailerCache[m.tmdbId] = key; return key; });
+  }
+  function renderTrailer(m) {
+    var box = $("resultTrailer");
+    if (box.dataset.forId === m.id) return;
+    box.dataset.forId = m.id;
+    box.hidden = true; box.innerHTML = "";
+    if (!m.tmdbId) return;
+    fetchTrailer(m).then(function (key) {
+      if (!key || ui.currentId !== m.id) return;
+      box.hidden = false;
+      box.innerHTML = '<button type="button" class="trailer-btn" id="trailerPlayBtn">▶ Ver trailer</button>';
+      $("trailerPlayBtn").addEventListener("click", function () {
+        box.innerHTML = '<div class="trailer-frame"><iframe src="https://www.youtube-nocookie.com/embed/' +
+          encodeURIComponent(key) + '?autoplay=1&rel=0" title="Trailer de ' + esc(m.title) +
+          '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+      });
+    });
+  }
+
   /* ---------------- dónde verla (TMDb watch providers, AR) ---------------- */
   var _provCache = {};
   function fetchProviders(tmdbId) {
@@ -392,6 +435,49 @@
     if (persist) { try { localStorage.setItem("cc.seenCollapsed.v1", collapsed ? "1" : "0"); } catch (e) {} }
   }
 
+  /* ---------------- ranking del ciclo (todas las vistas, mejor a peor) ---------------- */
+  function makeRankRow(m, idx) {
+    var a = S.avg(m.id);
+    var n = S.reviewsFor(m.id).length;
+    var row = document.createElement("div");
+    row.className = "film" + (idx < 3 ? " rank-" + (idx + 1) : "");
+    row.innerHTML =
+      '<button class="film-open" type="button">' +
+        '<span class="n">' + String(idx + 1).padStart(2, "0") + '</span>' +
+        '<span class="film-name">' + esc(m.title) +
+          (m.year ? ' <span class="rank-year">(' + m.year + ')</span>' : "") + '</span>' +
+        '<span class="film-badges">' +
+          (a != null ? '<span class="mini-avg">★ ' + a.toFixed(1) + '</span>' : "") +
+          '<span class="rank-votes">' + n + (n === 1 ? " voto" : " votos") + '</span>' +
+        '</span>' +
+      '</button>';
+    row.querySelector(".film-open").addEventListener("click", function () { openMovie(m.id, false); });
+    return row;
+  }
+
+  function renderRanking() {
+    var seen = S.allMovies().filter(S.isSeen);
+    seen.sort(function (x, y) { return (S.avg(y.id) || 0) - (S.avg(x.id) || 0); });
+    $("rankingCount").textContent = "(" + seen.length + ")";
+    var list = $("filmListRanking");
+    list.innerHTML = "";
+    if (!seen.length) {
+      var e = document.createElement("p");
+      e.className = "reviews-empty"; e.style.padding = "12px";
+      e.textContent = "Todavía no puntuaron ninguna película.";
+      list.appendChild(e);
+      return;
+    }
+    seen.forEach(function (m, i) { list.appendChild(makeRankRow(m, i)); });
+  }
+
+  function setRankingCollapsed(collapsed, persist) {
+    var sec = $("rankingSection");
+    sec.classList.toggle("collapsed", collapsed);
+    $("rankingToggle").setAttribute("aria-expanded", collapsed ? "false" : "true");
+    if (persist) { try { localStorage.setItem("cc.rankingCollapsed.v1", collapsed ? "1" : "0"); } catch (e) {} }
+  }
+
   /* ---------------- ficha / resultado ---------------- */
   function openMovie(id, fromSpin) {
     var m = S.movieById(id);
@@ -462,8 +548,9 @@
       ov.classList.add("is-empty");
     }
 
-    // ratings externos (IMDb / TMDb / RT) y dónde verla
+    // ratings externos (IMDb / TMDb / RT), trailer y dónde verla
     renderExternalRatings(m);
+    renderTrailer(m);
     renderProviders(m);
     $("resultLinks").innerHTML = "";
 
@@ -1085,6 +1172,7 @@
   function forceFichaRefresh() {
     $("watchProviders").dataset.forId = "";
     $("externalRatings").dataset.forId = "";
+    $("resultTrailer").dataset.forId = "";
     $("posterBox").innerHTML = '<div class="poster-fallback"></div>'; // que re-evalúe la portada
     if (ui.currentId) {
       var mm = S.movieById(ui.currentId);
@@ -1105,7 +1193,7 @@
     var pu = $("mmPoster").value.trim();
     patch.poster = pu || null;
     S.setOverride(mmId, patch);
-    _provCache = {}; _omdbCache = {};
+    _provCache = {}; _omdbCache = {}; _trailerCache = {};
     closeMovieModal();
     forceFichaRefresh();
     render();
@@ -1113,7 +1201,7 @@
   $("mmReset").addEventListener("click", function () {
     if (!mmId) return;
     S.setOverride(mmId, { title: null, year: null, tmdbId: null, poster: null, hidden: null });
-    _provCache = {}; _omdbCache = {};
+    _provCache = {}; _omdbCache = {}; _trailerCache = {};
     closeMovieModal();
     forceFichaRefresh();
     render();
@@ -1269,6 +1357,9 @@
   $("seenToggle").addEventListener("click", function () {
     setSeenCollapsed(!$("seenToggle").parentNode.classList.contains("collapsed"), true);
   });
+  $("rankingToggle").addEventListener("click", function () {
+    setRankingCollapsed(!$("rankingSection").classList.contains("collapsed"), true);
+  });
 
   /* ---------------- render maestro ---------------- */
   var lastActive = null;
@@ -1279,6 +1370,7 @@
     renderWheel();
     renderCartelera();
     renderHiddenSection();
+    renderRanking();
     renderSync();
     renderBanner();
 
@@ -1297,6 +1389,7 @@
   /* ---------------- init ---------------- */
   setupCanvas();
   try { setSeenCollapsed(localStorage.getItem("cc.seenCollapsed.v1") === "1"); } catch (e) {}
+  try { setRankingCollapsed(localStorage.getItem("cc.rankingCollapsed.v1") === "1"); } catch (e) {}
   S.onChange(render);
   S.init();
   render();
